@@ -1,0 +1,90 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <customWorkspace>/path/to/jenkins/CADS_DevOp_MultiJob_Parent</customWorkspace>
+  <builders>
+    <hudson.tasks.Ant plugin="ant@1.2">
+      <targets>war</targets>
+      <buildFile>WebContent/build.xml</buildFile>
+    </hudson.tasks.Ant>
+  </builders>
+  <publishers>
+    <jenkins.plugins.publish__over__ssh.BapSshPublisherPlugin plugin="publish-over-ssh@1.13">
+      <consolePrefix>SSH: </consolePrefix>
+      <delegate>
+        <publishers>
+          <jenkins.plugins.publish__over__ssh.BapSshPublisher>
+            <configName>DEV</configName>
+            <verbose>false</verbose>
+            <transfers>
+              <jenkins.plugins.publish__over__ssh.BapSshTransfer>
+                <remoteDirectory></remoteDirectory>
+                <sourceFiles>WebContent/build/Insurance_Claim.war</sourceFiles>
+                <excludes></excludes>
+                <removePrefix>WebContent/build</removePrefix>
+                <remoteDirectorySDF>false</remoteDirectorySDF>
+                <flatten>false</flatten>
+                <cleanRemote>false</cleanRemote>
+                <noDefaultExcludes>false</noDefaultExcludes>
+                <makeEmptyDirs>false</makeEmptyDirs>
+                <patternSeparator>[, ]+</patternSeparator>
+                <execCommand>@wsadmin_path  -f @wsanttest_path -lang jython -conntype SOAP -host @was_admin_host -port @was_admin_port</execCommand>
+                <execTimeout>0</execTimeout>
+                <usePty>false</usePty>
+              </jenkins.plugins.publish__over__ssh.BapSshTransfer>
+            </transfers>
+            <useWorkspaceInPromotion>false</useWorkspaceInPromotion>
+            <usePromotionTimestamp>false</usePromotionTimestamp>
+          </jenkins.plugins.publish__over__ssh.BapSshPublisher>
+        </publishers>
+        <continueOnError>false</continueOnError>
+        <failOnError>false</failOnError>
+        <alwaysPublishFromMaster>false</alwaysPublishFromMaster>
+        <hostConfigurationAccess class="jenkins.plugins.publish_over_ssh.BapSshPublisherPlugin" reference="../.."/>
+      </delegate>
+    </jenkins.plugins.publish__over__ssh.BapSshPublisherPlugin>
+    <hudson.plugins.postbuildtask.PostbuildTask plugin="postbuild-task@1.8">
+      <tasks>
+        <hudson.plugins.postbuildtask.TaskProperties>
+          <logTexts>
+            <hudson.plugins.postbuildtask.LogProperties>
+              <logText>SUCCESS</logText>
+              <operator>AND</operator>
+            </hudson.plugins.postbuildtask.LogProperties>
+          </logTexts>
+          <EscalateStatus>false</EscalateStatus>
+          <RunIfJobSuccessful>true</RunIfJobSuccessful>
+          <script>jiraId=$(svn --password svnPass log -q -v --xml --with-all-revprops -r committed | grep msg | sed -e &quot;s/&lt;msg&gt;\([^&lt;]*\)&lt;\/msg&gt;/\1/g&quot; | awk &apos;{print $1;}&apos;)&#xd;
+blen=${#BUILD_NUMBER}&#xd;
+blen=${blen}+1&#xd;
+url=$BUILD_URL&#xd;
+urllen=${#url}&#xd;
+url=${url:0:(urllen-blen)}&#xd;
+data=&apos;{&#xd;
+   &quot;update&quot;: {&#xd;
+      &quot;comment&quot;: [&#xd;
+         {&#xd;
+            &quot;add&quot;: {&#xd;
+               &quot;body&quot;:&quot;Development build succeeded, application was successfully deployed and the new version of the application  has been uploaded to CADS-Insurance-Dev Environment(http://was_admin_host:14161/Insurance_Claim/Insurance_Claim.jsp . Please see &apos;$url&apos;console for details. Proceeding into the Selenium test in development environment.&quot;&#xd;
+            }&#xd;
+         }&#xd;
+      ]&#xd;
+   }&#xd;
+}&apos;&#xd;
+/usr/bin/curl -D- -u user2:user2_pwd# -X PUT -d &quot;$data&quot; -H &quot;Content-Type: application/json&quot; http://jira_host:jira_port/rest/api/2/issue/$jiraId</script>
+        </hudson.plugins.postbuildtask.TaskProperties>
+      </tasks>
+    </hudson.plugins.postbuildtask.PostbuildTask>
+  </publishers>
+  <buildWrappers/>
+</project>
